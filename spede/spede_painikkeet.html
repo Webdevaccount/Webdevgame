@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SpedeSpeed</title>
+  <meta charset="utf-8"/>
+  <script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+  <script>
+
+  $(document).ready( function() {
+    var pisteet = 0;
+	var painikeJono = [];
+	var odotusmillisekunnit = 1000;
+	//Timer granuity is 10ms, so this means a 0.5s grace period before game starts
+	var timer = 50;
+	var kaynnissa = true;
+	
+	function aloitauudelleen(){
+		pisteet = 0;
+		$("#score").text(pisteet);
+		painikeJono = [];
+		odotusmillisekunnit = 1000;
+		timer = 50;
+		kaynnissa = true;
+	}
+	
+	//This function returns a random letter from a to d
+	function randomKirjain(){
+		var n = Math.floor(Math.random() * 4);
+		var chr = String.fromCharCode(97 + n);
+		return chr;
+	}
+
+	//Lit's a specific button to indicate it needs to be pressed
+	function valase(kirjain){
+		if(kirjain == "a"){
+			$("#A").attr('src', './aLit.png');
+		}
+		if(kirjain == "b"){
+			$("#B").attr('src', './bLit.png');
+		}
+		if(kirjain == "c"){
+			$("#C").attr('src', './cLit.png');
+		}
+		if(kirjain == "d"){
+			$("#D").attr('src', './dLit.png');
+		}
+	}
+	
+	//Lit's all the buttons. For example, when the game ends.
+	function valaseKaikki(){
+		$("#A").attr('src', './aLit.png');
+		$("#B").attr('src', './bLit.png');
+		$("#C").attr('src', './cLit.png');
+		$("#D").attr('src', './dLit.png');
+	}
+	
+	//Dims a specific button, for example, the one that got pressed to indicate it got pressed.
+	function pimenna(kirjain){
+		if(kirjain == "a"){
+			$("#A").attr('src', './aDim.png');
+		}
+		if(kirjain == "b"){
+			$("#B").attr('src', './bDim.png');
+		}
+		if(kirjain == "c"){
+			$("#C").attr('src', './cDim.png');
+		}
+		if(kirjain == "d"){
+			$("#D").attr('src', './dDim.png');
+		}
+	}
+	
+	//Dims all buttons, useful for ensuring no buttons are lit.
+	function pimennaKaikki(){
+		$("#A").attr('src', './aDim.png');
+		$("#B").attr('src', './bDim.png');
+		$("#C").attr('src', './cDim.png');
+		$("#D").attr('src', './dDim.png');
+	}
+	
+	//This function requests a random letter and appends it to 
+	function valayta(){
+		pimennaKaikki();
+		var chr = randomKirjain();
+		//Ensure that the same button will not get selected twice in a row.
+		while(chr == painikeJono[painikeJono.length - 1]) chr = randomKirjain();
+		painikeJono.push(chr);
+		valase(chr);
+	}
+	
+	//This is the main loop, that mostly controls the interval in a way that
+	//let's us to modify the interval on the fly.
+	function mainLoop(){
+		if(kaynnissa){
+			//The game ends if the player is 5 buttons behind.
+			if(painikeJono.length > 5){
+				lopeta();
+			} else if(timer < 0){
+				timer = odotusmillisekunnit / 10;
+				valayta();
+			} else {
+				timer -= 1;
+			}
+		}
+	}
+	
+	//Compares the pressed button to the order the buttons were pressed.
+	function yritaKirjainta(kirjain){
+	var eka = painikeJono.shift();
+		if(eka != kirjain){
+			lopeta();
+			eka = "e";
+		} else {
+			var nopeutus = 0;
+			//If the player presses the buttons slowly, the game speeds up slowly.
+			if(painikeJono.length == 0){
+				nopeutus = (odotusmillisekunnit - timer) / 8;
+				//If we're clicking the current button, dim it.
+				pimenna(kirjain);
+			} else {
+				nopeutus = 10;
+			}
+			//However, you gain more score on higher speeds.
+			odotusmillisekunnit -= Math.floor(nopeutus);
+			pisteet += Math.floor(10 / (odotusmillisekunnit / 1000));
+			$("#score").text(pisteet);
+		}
+	}
+	
+	//Ends the game.
+	function lopeta(){
+		valaseKaikki();
+		odotusmillisekunnit = 10000000;
+		timer = 100;
+		painikeJono = [];
+		kaynnissa = false;
+	}
+	
+	//Set the mainLoop to run every 10 milliseconds.
+	//Nobody would notice 10ms difference, so rather than running it 1000 times per second, we'll run it 100 times.
+	setInterval(function(){
+		mainLoop();
+	}, 10);
+	
+	$("#debug").click(function () {
+      for (var i = 0; i < painikeJono.length; i++) {
+			console.log(painikeJono[i]);
+		}
+	   odotusmillisekunnit = 60000;
+    });	
+	
+	$("#A").click(function () {
+		yritaKirjainta("a");
+	});
+	$("#B").click(function () {
+		yritaKirjainta("b");
+	});
+	$("#C").click(function () {
+		yritaKirjainta("c");
+	});
+	$("#D").click(function () {
+		yritaKirjainta("d");
+	});
+	
+	//These buttons were required by the task guidelines,
+	//and have very little room for customization, so they're mostly
+	//the same as in the example. Hope that's okey.
+    $("#submit_score").click( function () {
+      var msg = {
+		//I guess the message needs to be exactly this?
+        "messageType": "SCORE",
+        "score": parseFloat($("#score").text())
+      };
+      window.parent.postMessage(msg, "*");
+    });
+	
+    $("#save").click( function () {
+      var msg = {
+        "messageType": "SAVE",
+        "gameState": {
+          "painikeJono": painikeJono,
+          "pisteet": parseFloat($("#score").text()),
+		  "odotus": odotusmillisekunnit,
+		  "timer": timer,
+		  "kaynnissa": kaynnissa
+        }
+      };
+      window.parent.postMessage(msg, "*");
+    });
+	
+    $("#load").click( function () {
+      var msg = {
+        "messageType": "LOAD_REQUEST",
+      };
+      window.parent.postMessage(msg, "*");
+    });
+	
+	$("#restart").click(function () {
+		pimennaKaikki();
+		aloitauudelleen();
+	});
+	
+	window.addEventListener("message", function(evt) {
+      if(evt.data.messageType === "LOAD") {
+	
+        painikeJono = evt.data.gameState.painikeJono;
+        pisteet = evt.data.gameState.pisteet;
+		odotusmillisekunnit = evt.data.gameState.odotus;
+		timer = evt.data.gameState.timer;
+		kaynnissa = evt.data.gameState.kaynnissa;
+        $("#score").text(pisteet);
+		
+      } else if (evt.data.messageType === "ERROR") {
+        alert(evt.data.info);
+      }
+    });
+  });
+  </script>
+</head>
+<body>
+  <h2>Spede's speed game:</h2>
+	<input type="image" src="./aDim.png" id="A">
+	<input type="image" src="./bDim.png" id="B">
+	<input type="image" src="./cDim.png" id="C">
+	<input type="image" src="./dDim.png" id="D">
+
+  <h3>Menu:</h3>
+  <ul id="item_list"></ul>
+  <div><span  id="score">0</span> Points</div>
+
+  <button id="submit_score">Submit score</button><br>
+
+  <button id="save">Save</button>
+  <button id="load">Load</button><br>
+  <button id="restart">Restart</button>
+  <button id="debug" hidden="true">debug</button>
+</body>
+</html>
